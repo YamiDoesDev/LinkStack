@@ -12,11 +12,13 @@ jobs:
       - name: Updating Dependencies + zip
         run: |
           cd ~
+          sudo apt install -y curl rsync git php8.3
+
           curl -sS https://getcomposer.org/installer -o /tmp/composer-setup.php
           HASH=`curl -sS https://composer.github.io/installer.sig`
           sudo php /tmp/composer-setup.php --install-dir=/usr/local/bin --filename=composer
 
-          sudo update-alternatives --set php /usr/bin/php8.0
+          sudo update-alternatives --set php /usr/bin/php8.3
 
           cd /tmp
           mkdir linkstack
