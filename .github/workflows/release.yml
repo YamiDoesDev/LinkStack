@@ -99,7 +99,10 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: linkstack.zip
-          path: /tmp/linkstack.zip
+          path: /tmp/linkstack/linkstack.zip
+
+      - run: pwd
+      - run: ls -al
 
       - name: Create GitHub Release
         if: ${{ github.event_name == 'push' }}
@@ -153,6 +156,7 @@ jobs:
           curl -X PUT -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" -d "$payload" "$url"
 
   docker:
+    needs: build-and-release
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -185,6 +189,6 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: ./docker
-          push: true
+          push: false
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
