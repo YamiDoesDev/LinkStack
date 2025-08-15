@@ -6,21 +6,9 @@ on:
 
 jobs:
   setup-ubuntu:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-24.04
 
     steps:
-      - name: Check for GitHub API key
-        if: ${{ github.event_name == 'push' }}
-        env:
-          GITHUB_TOKEN: ${{ secrets.MY_GITHUB_TOKEN }}
-        run: |
-          if [ -z "${GITHUB_TOKEN}" ]; then
-            echo "GitHub API key not found. Exiting..."
-            exit 0
-          else
-            echo "GitHub API key found."
-          fi
-
       - name: Updating Dependencies + zip
         run: |
           cd ~
@@ -107,78 +95,42 @@ jobs:
 
       - name: Create GitHub Release
         if: ${{ github.event_name == 'push' }}
-        env:
-          GITHUB_TOKEN: ${{ secrets.MY_GITHUB_TOKEN }}
         run: |
-          if [ -z "${GITHUB_TOKEN}" ]; then
-            echo "GitHub API key not found. Exiting..."
-            exit 1
-          else
-            echo "GitHub API key found."
-            cd /tmp/linkstack
+          echo "GitHub API key found."
+          cd /tmp/linkstack
 
-            # Get the repository name in the format 'OWNER/REPO'
-            REPO_NAME="LinkStackOrg/LinkStack"
+          # Get the repository name in the format 'OWNER/REPO'
+          REPO_NAME="LinkStackOrg/LinkStack"
 
-            # Upload 'update.zip'
-            gh release upload "${GITHUB_REF##*/}" "update.zip" --clobber -R "$REPO_NAME"
+          # Upload 'update.zip'
+          gh release upload "${GITHUB_REF##*/}" "update.zip" --clobber -R "$REPO_NAME"
 
-            # Upload 'linkstack.zip'
-            gh release upload "${GITHUB_REF##*/}" "linkstack.zip" --clobber -R "$REPO_NAME"
+          # Upload 'linkstack.zip'
+          gh release upload "${GITHUB_REF##*/}" "linkstack.zip" --clobber -R "$REPO_NAME"
 
-            # Mark the release as the latest
-            gh release edit "${GITHUB_REF##*/}" --title="${GITHUB_REF##*/}" -R "$REPO_NAME"
-          fi
+          # Mark the release as the latest
+          gh release edit "${GITHUB_REF##*/}" --title="${GITHUB_REF##*/}" -R "$REPO_NAME"
 
       - name: Update version.json
         if: ${{ github.event_name == 'push' }}
-        env:
-          GITHUB_TOKEN: ${{ secrets.MY_GITHUB_TOKEN }}
         run: |
-          if [ -z "${GITHUB_TOKEN}" ]; then
-            echo "GitHub API key not found. Exiting..."
-            exit 1
-          else
-            # GitHub credentials
-            username="JulianPrieber"
-            token="${{ secrets.MY_GITHUB_TOKEN }}"
+          # The repository and file path
+          repo="LinkStackOrg/LinkStack"
+          file_path="version.json"
 
-            # The repository and file path
-            repo="LinkStackOrg/LinkStack"
-            file_path="version.json"
+          # Fetch the latest commit's SHA for the file
+          sha=$(curl -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" -s "https://api.github.com/repos/$repo/contents/$file_path" | grep -oP '(?<="sha": ")[^"]+')
 
-            # Fetch the latest commit's SHA for the file
-            sha=$(curl -u "$username:$token" -s "https://api.github.com/repos/$repo/contents/$file_path" | grep -oP '(?<="sha": ")[^"]+')
+          # Get version from version.json
+          cd /tmp/linkstack
+          TAG_VERSION="${GITHUB_REF##*/}"
+          version=${TAG_VERSION#"v"}
 
-            # Get version from version.json
-            cd /tmp/linkstack
-            TAG_VERSION="${GITHUB_REF##*/}"
-            version=${TAG_VERSION#"v"}
+          # JSON payload with the new content
+          payload="{\"message\": \"Update version.json to $version\", \"content\": \"$(echo -ne "$version\n" | base64 -w 0)\", \"sha\": \"$sha\"}"
 
-            # JSON payload with the new content
-            payload="{\"message\": \"Update version.json to $version\", \"content\": \"$(echo -ne "$version\n" | base64 -w 0)\", \"sha\": \"$sha\"}"
+          # API endpoint to create a new commit
+          url="https://api.github.com/repos/$repo/contents/$file_path"
 
-            # API endpoint to create a new commit
-            url="https://api.github.com/repos/$repo/contents/$file_path"
-
-            # Make the API request to update the file
-            curl -X PUT -u "$username:$token" -d "$payload" "$url"
-          fi
-
-      - name: Upload to Update Server
-        if: ${{ github.event_name == 'push' }}
-        run: |
-            cd /tmp/linkstack
-            ls
-            TAG_VERSION="${GITHUB_REF##*/}"
-            version=${TAG_VERSION#"v"}
-
-            # Install the OpenSSH client
-            sudo apt-get install -y openssh-client
-
-            # Clear the remote directory
-            sshpass -p "${{ secrets.SERVER_PASSWORD }}" ssh -o StrictHostKeyChecking=no -p ${{ secrets.SERVER_PORT }} ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }} "rm -rf ${{ secrets.REMOTE_PATH }}/*"
-
-            # Use SSH to upload the file to the remote server
-            sshpass -p "${{ secrets.SERVER_PASSWORD }}" scp -o StrictHostKeyChecking=no -P ${{ secrets.SERVER_PORT }} $version.zip ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }}:${{ secrets.REMOTE_PATH }}
-
+          # Make the API request to update the file
+          curl -X PUT -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" -d "$payload" "$url"
