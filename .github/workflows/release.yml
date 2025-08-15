@@ -103,7 +103,13 @@ jobs:
           cd /tmp/linkstack
 
           # Get the repository name in the format 'OWNER/REPO'
-          REPO_NAME="LinkStackOrg/LinkStack"
+          REPO_NAME="YamiDoesDev/LinkStack"
+
+          # create release
+          gh release create "${GITHUB_REF##*/}" \
+            --title "${GITHUB_REF##*/}" \
+            --notes "Automated release for ${GITHUB_REF##*/}" \
+            -R "$REPO_NAME"
 
           # Upload 'update.zip'
           gh release upload "${GITHUB_REF##*/}" "update.zip" --clobber -R "$REPO_NAME"
