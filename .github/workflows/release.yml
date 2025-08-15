@@ -97,8 +97,9 @@ jobs:
 
       - name: Create GitHub Release
         if: ${{ github.event_name == 'push' }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          echo "GitHub API key found."
           cd /tmp/linkstack
 
           # Get the repository name in the format 'OWNER/REPO'
@@ -115,6 +116,8 @@ jobs:
 
       - name: Update version.json
         if: ${{ github.event_name == 'push' }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           # The repository and file path
           repo="LinkStackOrg/LinkStack"
